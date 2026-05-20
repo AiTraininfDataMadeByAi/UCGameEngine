@@ -510,6 +510,7 @@ const UCShaders = {
   `,
 
   // -- Grid Vertex Shader --
+  // -- Grid Vertex Shader --
   GRID_VERT: `
     attribute vec3 a_position;
     uniform mat4 u_viewMatrix;
@@ -517,6 +518,7 @@ const UCShaders = {
     uniform vec3 u_cameraPos;
     varying vec3 v_worldPos;
     varying float v_dist;
+
     void main() {
       vec3 pos = a_position + vec3(u_cameraPos.x, 0.0, u_cameraPos.z);
       v_worldPos = pos;
@@ -525,39 +527,46 @@ const UCShaders = {
     }
   `,
 
-  // -- Grid Fragment Shader --
+  // -- Grid Fragment Shader (no fwidth, WebGL 1 safe) --
   GRID_FRAG: `
     precision mediump float;
     varying vec3  v_worldPos;
     varying float v_dist;
-    uniform float u_gridSize;
-    uniform float u_lineWidth;
-    uniform vec3  u_gridColor;
     uniform float u_fadeDistance;
+    uniform vec3  u_gridColor;
 
-    float grid(vec2 p, float s) {
-      vec2 g = abs(fract(p / s - 0.5) - 0.5) / fwidth(p / s);
-      return min(g.x, g.y);
+    float gridLine(float coord, float thickness) {
+      float f = abs(fract(coord - 0.5) - 0.5);
+      float df = 0.02;
+      return smoothstep(df, 0.0, f - thickness);
     }
 
     void main() {
-      float g1 = grid(v_worldPos.xz, 1.0);
-      float g10 = grid(v_worldPos.xz, 10.0);
-      float line1  = 1.0 - min(g1,  u_lineWidth);
-      float line10 = 1.0 - min(g10, u_lineWidth * 2.0);
-      float alpha = max(line1 * 0.25, line10 * 0.6);
-      float fade = 1.0 - smoothstep(u_fadeDistance * 0.5, u_fadeDistance, v_dist);
-      // Axes
-      float axisX = 1.0 - min(abs(v_worldPos.z) / fwidth(v_worldPos.z), 1.0);
-      float axisZ = 1.0 - min(abs(v_worldPos.x) / fwidth(v_worldPos.x), 1.0);
+      float g1  = max(
+        gridLine(v_worldPos.x, 0.015),
+        gridLine(v_worldPos.z, 0.015)
+      );
+      float g10 = max(
+        gridLine(v_worldPos.x * 0.1, 0.008),
+        gridLine(v_worldPos.z * 0.1, 0.008)
+      );
+      float alpha = max(g1 * 0.3, g10 * 0.7);
+      float fade  = 1.0 - smoothstep(u_fadeDistance * 0.4, u_fadeDistance, v_dist);
+      alpha *= fade;
+
       vec3 col = u_gridColor;
-      if (axisZ > 0.5) col = vec3(0.8, 0.15, 0.15);
-      if (axisX > 0.5) col = vec3(0.15, 0.15, 0.8);
-      alpha = max(alpha, max(axisX, axisZ) * 0.9);
-      gl_FragColor = vec4(col, alpha * fade);
+
+      float axisThickness = 0.025;
+      float axisX = gridLine(v_worldPos.z * 10.0, axisThickness * 10.0);
+      float axisZ = gridLine(v_worldPos.x * 10.0, axisThickness * 10.0);
+      if (axisZ > 0.3) col = vec3(0.75, 0.15, 0.15);
+      if (axisX > 0.3) col = vec3(0.15, 0.15, 0.75);
+      alpha = max(alpha, max(axisX, axisZ) * fade * 0.85);
+
+      if (alpha < 0.01) discard;
+      gl_FragColor = vec4(col, alpha);
     }
   `,
-
   // -- Selection Outline Vertex Shader --
   OUTLINE_VERT: `
     attribute vec3 a_position;
