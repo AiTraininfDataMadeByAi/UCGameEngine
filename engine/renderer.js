@@ -951,7 +951,7 @@ class UCRenderer {
     }
     this.gl = gl;
     // Extensions
-    this.extOES  = gl.getExtension('OES_element_index_uint');
+     gl.getExtension('OES_standard_derivatives');
     this.extDB   = gl.getExtension('WEBGL_depth_texture');
     this.extAF   = gl.getExtension('EXT_texture_filter_anisotropic');
     // Compile programs
