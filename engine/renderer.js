@@ -510,7 +510,6 @@ const UCShaders = {
   `,
 
   // -- Grid Vertex Shader --
-  // -- Grid Vertex Shader --
   GRID_VERT: `
     attribute vec3 a_position;
     uniform mat4 u_viewMatrix;
@@ -518,52 +517,57 @@ const UCShaders = {
     uniform vec3 u_cameraPos;
     varying vec3 v_worldPos;
     varying float v_dist;
-
     void main() {
-      vec3 pos = a_position + vec3(u_cameraPos.x, 0.0, u_cameraPos.z);
-      v_worldPos = pos;
-      v_dist = length(pos - u_cameraPos);
+      vec3 pos    = a_position + vec3(u_cameraPos.x, 0.0, u_cameraPos.z);
+      v_worldPos  = pos;
+      v_dist      = length(pos - u_cameraPos);
       gl_Position = u_projMatrix * u_viewMatrix * vec4(pos, 1.0);
     }
   `,
 
-  // -- Grid Fragment Shader (no fwidth, WebGL 1 safe) --
-   // -- Grid Fragment Shader --
   GRID_FRAG: `
-    #extension GL_OES_standard_derivatives : enable
     precision mediump float;
     varying vec3  v_worldPos;
     varying float v_dist;
     uniform float u_fadeDistance;
     uniform vec3  u_gridColor;
 
-    float gridLine(float coord, float thickness) {
-      float f = abs(fract(coord - 0.5) - 0.5);
-      float df = fwidth(coord) * 1.5;
-      return smoothstep(df, 0.0, f - thickness);
-    }
-
     void main() {
-      float g1  = max(
-        gridLine(v_worldPos.x, 0.02),
-        gridLine(v_worldPos.z, 0.02)
+      float scaleA = 1.0;
+      float scaleB = 10.0;
+      float lineW  = 0.04;
+
+      vec2 p = v_worldPos.xz;
+
+      vec2 gA = abs(fract(p / scaleA) - 0.5);
+      float dA = min(gA.x, gA.y);
+      float lineA = 1.0 - smoothstep(lineW - 0.01, lineW + 0.01, dA);
+
+      vec2 gB = abs(fract(p / scaleB) - 0.5);
+      float dB = min(gB.x, gB.y);
+      float lineB = 1.0 - smoothstep(
+        lineW * 0.5 - 0.005,
+        lineW * 0.5 + 0.005, dB
       );
-      float g10 = max(
-        gridLine(v_worldPos.x * 0.1, 0.01),
-        gridLine(v_worldPos.z * 0.1, 0.01)
+
+      float alpha = max(lineA * 0.25, lineB * 0.65);
+
+      float fade = 1.0 - smoothstep(
+        u_fadeDistance * 0.3,
+        u_fadeDistance, v_dist
       );
-      float alpha = max(g1 * 0.25, g10 * 0.6);
-      float fade  = 1.0 - smoothstep(u_fadeDistance * 0.4, u_fadeDistance, v_dist);
       alpha *= fade;
 
       vec3 col = u_gridColor;
 
-      // X axis = red, Z axis = blue
-      float axisX = 1.0 - smoothstep(0.0, fwidth(v_worldPos.z) * 2.0, abs(v_worldPos.z));
-      float axisZ = 1.0 - smoothstep(0.0, fwidth(v_worldPos.x) * 2.0, abs(v_worldPos.x));
-      if (axisZ > 0.5) col = vec3(0.8, 0.2, 0.2);
-      if (axisX > 0.5) col = vec3(0.2, 0.2, 0.8);
-      alpha = max(alpha, max(axisX, axisZ) * fade * 0.9);
+      float axisW = 0.06;
+      float onX   = 1.0 - smoothstep(axisW - 0.01, axisW + 0.01,
+                    abs(v_worldPos.z));
+      float onZ   = 1.0 - smoothstep(axisW - 0.01, axisW + 0.01,
+                    abs(v_worldPos.x));
+      if (onZ > 0.5) col = vec3(0.8, 0.2, 0.2);
+      if (onX > 0.5) col = vec3(0.2, 0.2, 0.8);
+      alpha = max(alpha, max(onX, onZ) * fade * 0.9);
 
       if (alpha < 0.01) discard;
       gl_FragColor = vec4(col, alpha);
@@ -952,9 +956,6 @@ class UCRenderer {
       return;
     }
  this.gl = gl;
-
-// Required for fwidth()/dFdx()/dFdy() in WebGL1 shaders
-this.extDerivatives = gl.getExtension('OES_standard_derivatives');
 
 // Other extensions
 this.extOES  = gl.getExtension('OES_element_index_uint');
