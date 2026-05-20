@@ -3715,18 +3715,17 @@ UCEditor = {
   },
 
   // --------------------------------------------------------
-  toast(message, type = 'info') {
-    const icons = { success:'✅', error:'❌', warn:'⚠️', info:'ℹ️' };
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${message}</span>`;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3500);
-  }
+      toast(message, type = 'info') {
+        const icons = { success:'✅', error:'❌', warn:'⚠️', info:'ℹ️' };
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
+      }
 
 };
-  };
 </script>
 <script src="engine/renderer.js"></script>
 </body>
