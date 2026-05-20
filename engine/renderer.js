@@ -979,43 +979,64 @@ class UCRenderer {
 
   // ----------------------------------------------------------
   _createProgram(vertSrc, fragSrc) {
-    const gl = this.gl;
-    const compile = (type, src) => {
-      const sh = gl.createShader(type);
-      gl.shaderSource(sh, src);
-      gl.compileShader(sh);
-      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-        if (window.UCEditor) window.UCEditor.log('error', '🔴 Shader error: ' + gl.getShaderInfoLog(sh), 'GLSL');
-        gl.deleteShader(sh);
-        return null;
-      }
-      return sh;
-    };
-    const vert = compile(gl.VERTEX_SHADER,   vertSrc);
-    const frag = compile(gl.FRAGMENT_SHADER, fragSrc);
-    const prog = gl.createProgram();
-    gl.attachShader(prog, vert);
-    gl.attachShader(prog, frag);
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      if (window.UCEditor) window.UCEditor.log('error', '🔴 Program link error: ' + gl.getProgramInfoLog(prog), 'GLSL');
+  const gl = this.gl;
+
+  const compile = (type, src, name) => {
+    const sh = gl.createShader(type);
+    if (!sh) {
+      if (window.UCEditor) window.UCEditor.log('error', `❌ Failed to create ${name} shader`, 'GLSL');
       return null;
     }
-    // Cache uniform / attribute locations
-    prog._u = {};
-    prog._a = {};
-    const uCount = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS);
-    for (let i=0; i<uCount; i++) {
-      const info = gl.getActiveUniform(prog, i);
-      prog._u[info.name] = gl.getUniformLocation(prog, info.name);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      const error = gl.getShaderInfoLog(sh);
+      if (window.UCEditor) {
+        window.UCEditor.log('error', `🔴 ${name} shader compile error:\n${error}`, 'GLSL');
+      }
+      gl.deleteShader(sh);
+      return null;
     }
-    const aCount = gl.getProgramParameter(prog, gl.ACTIVE_ATTRIBUTES);
-    for (let i=0; i<aCount; i++) {
-      const info = gl.getActiveAttrib(prog, i);
-      prog._a[info.name] = gl.getAttribLocation(prog, info.name);
-    }
-    return prog;
+    return sh;
+  };
+
+  const vert = compile(gl.VERTEX_SHADER,   vertSrc, 'Vertex');
+  const frag = compile(gl.FRAGMENT_SHADER, fragSrc, 'Fragment');
+
+  if (!vert || !frag) {
+    if (window.UCEditor) window.UCEditor.log('error', '❌ Shader program creation aborted due to compile errors.', 'Renderer');
+    return null;
   }
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vert);
+  gl.attachShader(prog, frag);
+  gl.linkProgram(prog);
+
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    const error = gl.getProgramInfoLog(prog);
+    if (window.UCEditor) window.UCEditor.log('error', `🔴 Program link error:\n${error}`, 'GLSL');
+    gl.deleteProgram(prog);
+    return null;
+  }
+
+  // Cache uniforms & attributes (same as before)
+  prog._u = {};
+  prog._a = {};
+  const uCount = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < uCount; i++) {
+    const info = gl.getActiveUniform(prog, i);
+    prog._u[info.name] = gl.getUniformLocation(prog, info.name);
+  }
+  const aCount = gl.getProgramParameter(prog, gl.ACTIVE_ATTRIBUTES);
+  for (let i = 0; i < aCount; i++) {
+    const info = gl.getActiveAttrib(prog, i);
+    prog._a[info.name] = gl.getAttribLocation(prog, info.name);
+  }
+
+  return prog;
+}
 
   // ----------------------------------------------------------
   _createBuffer(data, target) {
