@@ -949,11 +949,15 @@ class UCRenderer {
       }
       return;
     }
-    this.gl = gl;
-    // Extensions
-     gl.getExtension('OES_standard_derivatives');
-    this.extDB   = gl.getExtension('WEBGL_depth_texture');
-    this.extAF   = gl.getExtension('EXT_texture_filter_anisotropic');
+ this.gl = gl;
+
+// Required for fwidth()/dFdx()/dFdy() in WebGL1 shaders
+this.extDerivatives = gl.getExtension('OES_standard_derivatives');
+
+// Other extensions
+this.extOES  = gl.getExtension('OES_element_index_uint');
+this.extDB   = gl.getExtension('WEBGL_depth_texture');
+this.extAF   = gl.getExtension('EXT_texture_filter_anisotropic');
     // Compile programs
     this.programs.mesh    = this._createProgram(UCShaders.MESH_VERT,    UCShaders.MESH_FRAG);
     this.programs.unlit   = this._createProgram(UCShaders.UNLIT_VERT,   UCShaders.UNLIT_FRAG);
