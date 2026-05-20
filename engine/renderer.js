@@ -528,7 +528,9 @@ const UCShaders = {
   `,
 
   // -- Grid Fragment Shader (no fwidth, WebGL 1 safe) --
+   // -- Grid Fragment Shader --
   GRID_FRAG: `
+    #extension GL_OES_standard_derivatives : enable
     precision mediump float;
     varying vec3  v_worldPos;
     varying float v_dist;
@@ -537,31 +539,31 @@ const UCShaders = {
 
     float gridLine(float coord, float thickness) {
       float f = abs(fract(coord - 0.5) - 0.5);
-      float df = 0.02;
+      float df = fwidth(coord) * 1.5;
       return smoothstep(df, 0.0, f - thickness);
     }
 
     void main() {
       float g1  = max(
-        gridLine(v_worldPos.x, 0.015),
-        gridLine(v_worldPos.z, 0.015)
+        gridLine(v_worldPos.x, 0.02),
+        gridLine(v_worldPos.z, 0.02)
       );
       float g10 = max(
-        gridLine(v_worldPos.x * 0.1, 0.008),
-        gridLine(v_worldPos.z * 0.1, 0.008)
+        gridLine(v_worldPos.x * 0.1, 0.01),
+        gridLine(v_worldPos.z * 0.1, 0.01)
       );
-      float alpha = max(g1 * 0.3, g10 * 0.7);
+      float alpha = max(g1 * 0.25, g10 * 0.6);
       float fade  = 1.0 - smoothstep(u_fadeDistance * 0.4, u_fadeDistance, v_dist);
       alpha *= fade;
 
       vec3 col = u_gridColor;
 
-      float axisThickness = 0.025;
-      float axisX = gridLine(v_worldPos.z * 10.0, axisThickness * 10.0);
-      float axisZ = gridLine(v_worldPos.x * 10.0, axisThickness * 10.0);
-      if (axisZ > 0.3) col = vec3(0.75, 0.15, 0.15);
-      if (axisX > 0.3) col = vec3(0.15, 0.15, 0.75);
-      alpha = max(alpha, max(axisX, axisZ) * fade * 0.85);
+      // X axis = red, Z axis = blue
+      float axisX = 1.0 - smoothstep(0.0, fwidth(v_worldPos.z) * 2.0, abs(v_worldPos.z));
+      float axisZ = 1.0 - smoothstep(0.0, fwidth(v_worldPos.x) * 2.0, abs(v_worldPos.x));
+      if (axisZ > 0.5) col = vec3(0.8, 0.2, 0.2);
+      if (axisX > 0.5) col = vec3(0.2, 0.2, 0.8);
+      alpha = max(alpha, max(axisX, axisZ) * fade * 0.9);
 
       if (alpha < 0.01) discard;
       gl_FragColor = vec4(col, alpha);
